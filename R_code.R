@@ -1,4 +1,4 @@
-# adding this comment only to test git and github
+# adding this comment as variation to test git and github
 
 # 1. Packages
 
