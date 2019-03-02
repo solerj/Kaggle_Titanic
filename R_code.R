@@ -1,16 +1,9 @@
-# adding this comment as variation to test git and github
-# this is version 1c
-# I want to keep this version
-# Actually, I want this one
-
-# 1. Packages
+# 1. Init ---------------------------------------------------------------------
 
 set.seed(200591)
 
 packagesNeeded <- c("dplyr", "stringr", "ggplot2", "reshape", "glmnet", "caret"
                     , "car", "pROC")
-                    #, "jsonlite", "digest", "e1071", "devtools", "PRROC"
-                    #, "cluster", "gplots", "tcltk", "class", "knitr")
 
 for (i in packagesNeeded){
   if(!(i %in% installed.packages())){
