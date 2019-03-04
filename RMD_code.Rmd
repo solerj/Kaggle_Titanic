@@ -1,13 +1,15 @@
 ---
 title:  "Predicting Titanic Survivors using Logistic Regression"
 author: "John Soler"
-date:   "3 March 2019"
+date:   "10 March 2019"
 output: html_document
 ---
 
 This project is carried out and presented here to display: my statistical knowledge particularly applied to Logistic Regression; my level of programming in R; and ability to explain and document advanced numerical techniques. I would consider this report as moderately technical and it is intended for an audience having a basic understanding of Regression as well as interest in some of the underlying concepts to this algorithm.
 
-The problem tackled here is to predict, as accurately as possible, the fate of a set of passengers on board the Titanic; whether they would survive or not (i.e. a binary classification problem). I obtained labelled data from Kaggle in the challenge "Titanic: Machine Learning from Disaster" (https://www.kaggle.com/c/titanic).The same exact reasoning discussed for this problem could be applied to a Churn Prediction model, Insurance Pricing model, or any other propensity model valuable for business. 
+The problem tackled here is to predict, as accurately as possible, the fate of a set of passengers on board the Titanic; whether they would survive or not (i.e. a binary classification problem). I obtained labelled data from Kaggle in the challenge "Titanic: Machine Learning from Disaster" (https://www.kaggle.com/c/titanic), and then applied my algorithm to a test set, also provided and evaluated by Kaggle.
+
+This report explains the approach taken - including feature engineering, catering for multicollinearity, regularisation, etc. - as well as the final model. Kaggle's evaluation determined an accuracy of just over 78% for my final Logistic Regression model. You will also come across instances where I took the opportunity to deviate slightly to explore some concepts related to Regression in general. The same exact reasoning discussed for this problem could be applied to a Churn Prediction model, Insurance Pricing model, or any other propensity model valuable for business. 
 
 
 ## Contents
