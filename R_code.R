@@ -2,8 +2,8 @@
 
 set.seed(200591)
 
-packagesNeeded <- c("dplyr", "stringr", "ggplot2", "reshape", "glmnet", "caret"
-                    , "car", "pROC")
+packagesNeeded <- c("RCurl", "dplyr", "stringr", "ggplot2", "reshape"
+                    , "glmnet", "caret", "car", "pROC")
 
 for (i in packagesNeeded){
   if(!(i %in% installed.packages())){
@@ -12,21 +12,11 @@ for (i in packagesNeeded){
   library(i, character.only = T)
 }
 
-#install.packages("keras")
-library(keras)
+rawTrain <- getURL("https://raw.githubusercontent.com/solerj/Kaggle_Titanic/master/train.csv")
+trainO <- read.csv(text = rawTrain)
+rawTest <- getURL("https://raw.githubusercontent.com/solerj/Kaggle_Titanic/master/test.csv")
+testO <- read.csv(text = rawTest)
 
-# if(!("keras" %in% installed.packages())){
-#   devtools::install_github("rstudio/keras")
-#   }
-# library(keras)
-# install_keras()
-
-# use_session_with_seed(200591)
-
-
-setwd("D:/1_Kaggle/Titanic Survival")
-trainO <- read.csv("train.csv")
-testO <- read.csv("test.csv")
 testO$Survived <- NA
 dataAll <- rbind(trainO, testO)
 
