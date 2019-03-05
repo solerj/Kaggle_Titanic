@@ -480,7 +480,7 @@ glmnetD <- model.matrix(SurvivedF ~ . + cabinClass:logFareS - cabinClass - logFa
 alphas  <- seq(from = 0, to = 1, by = 0.05)
 lambdas <- exp(-seq(from = 1.5, to = 10, by = 0.05))
 lambdAlpha <- c()
-for (i in 1:2){
+for (i in 1:10){
   print(i)
   for (a in alphas){
     myRegModel <- cv.glmnet(x = glmnetD
