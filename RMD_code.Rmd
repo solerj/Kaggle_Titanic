@@ -68,16 +68,16 @@ dataInfo <- cbind(colnames(dataAll)
                       , "test2"))
 
 colnames(dataInfo) <- c("Variable", "Description")
-kable(dataInfo, caption = "Data")
+kable(dataInfo, caption = "Data Description")
 
 ```
 
 
+A high level data cleaning is carried out. This includes preparing data types and some simple data manipulation as follows:
 
-A high level data cleaning is then carried out. This includes preparing data types and some simple data manipulation as follows:
-
-* 
-* 
+* Extracted the title of each passenger from the Name variable, and called the new feature `NameTitle`
+* Filled in a few missing values for the Fare and Embarked variables
+* Transformed the variables: `Pclass`, `Sex`, `Embarked` & `NameTitle` into factors. I made sure that for each variable, the most common level is labelled as the primary level.
 
 
 ```{r clean, echo=FALSE, cache=TRUE, message = F}
