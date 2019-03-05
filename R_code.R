@@ -67,15 +67,11 @@ for (variable in variablesToRefactor){
   dataAll[,c(variable)] <- myAsFactor(dataAll, variable)
 }
 
-str(dataAll)
-
 dataAll$Name <- as.character(dataAll$Name)
 dataAll$Cabin <- as.character(dataAll$Cabin)
 dataAll$Fare[is.na(dataAll$Fare)] <- median(dataAll$Fare, na.rm = T)
 dataAll$SibSpParCh <- as.factor(paste0(as.integer(dataAll$SibSp>0)
                                        , as.integer(dataAll$Parch>0)))
-
-colnames(dataAll)
 
 checkDependence <- function(variable1, variable2){
   contingency <- table(dataAll[,c(variable1, variable2)])
