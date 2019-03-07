@@ -30,15 +30,15 @@ This report explains the approach taken - including feature engineering, caterin
 
 ##1. Initialisation
 
-The first section of the R code includes setting up packages, extracting data and making sure that the report is reproducible by setting a seed. The data is in CSV format and can be extracted drictly from Kaggle, as well as from my GitHub account.
 
+The first section of the R code includes setting up packages, extracting data and making sure that the report is reproducible by setting a seed. The data is in CSV format and can be extracted drictly from Kaggle, as well as from my GitHub account.
 
 ```{r setting_up, echo=FALSE, message = F, chache = TRUE}
 
 set.seed(200591)
 
 packagesNeeded <- c("RCurl", "dplyr", "stringr", "ggplot2", "reshape"
-                    , "glmnet", "caret", "car", "pROC")
+                    , "glmnet", "caret", "car", "pROC", "knitr")
 
 for (i in packagesNeeded){
   if(!(i %in% installed.packages())){
@@ -59,13 +59,23 @@ dataAll <- rbind(trainO, testO)
 
 ##2. Data Cleaning
 
-First, here is the raw data with some information on each variable:
+First, here is the raw data with some information on each variable as described in Kaggle:
 
 ```{r clean, echo=FALSE, cache=TRUE, message = F}
 
 dataInfo <- cbind(colnames(dataAll)
-                  , c("test1"
-                      , "test2"))
+                  , c("Passenger Number"
+                      , "Survived or Not"
+                      , "Class of Travel"
+                      , "Name of Passenger"
+                      , "Gender"
+                      , "Age of Passengers"
+                      , "Number of Sibling/Spouse aboard"
+                      , "Number of Parent/Child aboard"
+                      , "Ticket code"
+                      , "Fare"
+                      , "Cabin code"
+                      , "The port in which a passenger has embarked. C - Cherbourg, S - Southampton, Q = Queenstown"))
 
 colnames(dataInfo) <- c("Variable", "Description")
 kable(dataInfo, caption = "Data Description")
@@ -77,14 +87,51 @@ A high level data cleaning is carried out. This includes preparing data types an
 
 * Extracted the title of each passenger from the Name variable, and called the new feature `NameTitle`
 * Filled in a few missing values for the Fare and Embarked variables
-* Transformed the variables: `Pclass`, `Sex`, `Embarked` & `NameTitle` into factors. I made sure that for each variable, the most common level is labelled as the primary level.
+* Transformed the variables: `Pclass`, `Sex`, `Embarked` & `NameTitle` into factors. I made sure that for each variable, the most common level is labelled as the primary level. This is important in anticipation of fitting the regression model.
 
 
 ```{r clean, echo=FALSE, cache=TRUE, message = F}
 
+getTitle <- function(name) {
+  firstTitle <- str_sub(name,
+                        start = (str_locate(name, ',')[1]+2),
+                        end = (str_locate(name, '[.]')[1]-1))
+  firstTitle
+}
+dataAll$Name      <- as.character(dataAll$Name)
+dataAll$NameTitle <- sapply(dataAll$Name, getTitle)
 
 
-  
+fareMissing <- dataAll[is.na(dataAll$Fare),]
+fareQuickFill <- median(dataAll[dataAll$NameTitle == "Mr" &
+                                  dataAll$Pclass == 3 &
+                                  dataAll$Embarked == "S"
+                                , c("Fare")], na.rm = T)
+dataAll$Fare[is.na(dataAll$Fare)] <- fareQuickFill
+
+
+embarkedMissing <- dataAll[dataAll$Embarked == "",]
+tbEmbark <- table(dataAll$Embarked[dataAll$Pclass == 1 &
+                                     dataAll$SibSp == 0 &
+                                     dataAll$Parch == 0])
+modeEmbarked <- names(which.max(tbEmbark))
+dataAll$Embarked[dataAll$Embarked == ""] <- modeEmbarked
+
+
+myAsFactor <- function(tableName, variable){
+  if(is.factor(tableName[,c(variable)])){
+    tableName[,c(variable)] <- as.character(tableName[,c(variable)])
+  }
+  tb <- table(tableName[,c(variable)])
+  factor(tableName[,c(variable)]
+         , levels = names(tb[order(tb, decreasing = TRUE)]))
+}
+
+dataAll$SurvivedF <- myAsFactor(dataAll, "Survived")
+variablesToRefactor <- c("Pclass", "Sex", "Embarked", "NameTitle")
+for (variable in variablesToRefactor){
+  dataAll[,c(variable)] <- myAsFactor(dataAll, variable)
+}
 
 ```
 
