@@ -1,7 +1,7 @@
 ---
 title:  "Predicting Titanic Survivors using Logistic Regression"
 author: "John Soler"
-date:   "10 March 2019"
+date:   "31 March 2019"
 output: html_document
 ---
 
@@ -14,17 +14,13 @@ This report explains the approach taken - including feature engineering, caterin
 
 ## Contents
 
-
 1. Initialisation
 2. Data Cleaning
 3. Data Exploration
-4. Feature Engineering and Normalisation (Scaling to [0,1])
-5. Inferring the customer gender - Refined model: Defining Criteria
-6. Feature Selection
-7. Inferring the customer gender - Refined model: Applying KNN
-8. Prediction Model Trained on the Inferred Gender
-9. Prediction Model Evaluation
-10. Summary
+4. Feature Engineering and Scaling
+5. Multicollinearity
+6. Model building
+7. Model Evaluation
 
 
 
@@ -61,11 +57,11 @@ dataAll <- rbind(trainO, testO)
 
 First, here is the raw data with some information on each variable as described in Kaggle:
 
-```{r clean, echo=FALSE, cache=TRUE, message = F}
+```{r view_data, echo=FALSE, cache=TRUE, message = F}
 
 dataInfo <- cbind(colnames(dataAll)
                   , c("Passenger Number"
-                      , "Survived or Not"
+                      , "Survived or Not - the Target variable"
                       , "Class of Travel"
                       , "Name of Passenger"
                       , "Gender"
@@ -136,36 +132,225 @@ for (variable in variablesToRefactor){
 ```
 
 
-In the table above, each test having a "FALSE" means that there is some issue with the reconciliation. I did not investigate each of these into too much detail, but I tried to work around them in the _Feature Engineering and Normalising_ section of the code.
+##3. Data Exploration
+
+Here I investigate each variable in more detail, particularly in view of the Target variable. For each variable, I look for any relationship with the Target by using the Chi-Squared Test of Independence if the variable is categorical (e.g. Embarked) or using the Student's t-Test if the variable is numerical (e.g. Fare). When categorical variables have a lot of levels, I consider grouping levels. I also apply scaling of numerical variables as necessary.
+
+```{r class, echo=FALSE, cache=TRUE, message = F}
+
+table(dataAll$Pclass)
+barClassSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x=Pclass
+                             , y=Survived))
+barClassSurv <- barClassSurv + stat_summary(fun.y="mean", geom="bar")
+barClassSurv <- barClassSurv + ylim(0, 1)
+barClassSurv
+checkDependence("SurvivedF", "Pclass")
+
+```
+
+```{r cabinLetter, echo=FALSE, cache=TRUE, message = F}
+
+dataAll$cabinLetter <- str_sub(dataAll$Cabin, 1, 1)
+table(dataAll$cabinLetter)
+dataAll$cabinLetter[dataAll$cabinLetter == ""] <- "N"
+barCabinSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x=reorder(cabinLetter,-Survived,mean)
+                             , y=Survived))
+barCabinSurv <- barCabinSurv + stat_summary(fun.y="mean", geom="bar")
+barCabinSurv <- barCabinSurv + ylim(0, 1)
+barCabinSurv
+dataAll$cabinLetter <- myAsFactor(dataAll, "cabinLetter")
+checkDependence("SurvivedF", "cabinLetter")
+
+```
+
+```{r noCabins, echo=FALSE, cache=TRUE, message = F}
+
+dataAll$noCabins <- str_count(as.character(dataAll$Cabin), " ")
+table(dataAll$noCabins)
+barNoCabinSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x = noCabins
+                             , y=Survived))
+barNoCabinSurv <- barNoCabinSurv + stat_summary(fun.y="mean", geom="bar")
+barNoCabinSurv <- barNoCabinSurv + ylim(0, 1)
+barNoCabinSurv
+checkDependence("SurvivedF", "noCabins")
+
+dataAll$noCabinsGroup <- dataAll$noCabins
+dataAll$noCabinsGroup[dataAll$noCabins != 0] <- "1+"
+dataAll$noCabinsGroup <- myAsFactor(dataAll, "noCabinsGroup")
+checkDependence("SurvivedF", "noCabinsGroup")
+
+```
+
+```{r NameTitles, echo=FALSE, cache=TRUE, message = F}
+
+table(dataAll$NameTitle)
+
+# clearly some relationship between NameTitle and probab of Survival
+# but there are a bit too many categories and risk of overfitting
+barTitleSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x=reorder(NameTitle,-Survived,mean)
+                             , y=Survived))
+barTitleSurv <- barTitleSurv + stat_summary(fun.y="mean", geom="bar")
+barTitleSurv <- barTitleSurv + ylim(0, 1)
+barTitleSurv
+
+# created title groups for more important people 
+dataAll$titleGroup <- as.character(dataAll$NameTitle)
+dataAll$titleGroup[dataAll$NameTitle %in% c("Col", "Don", "Dr", "Jonkheer", "Major", "Rev", "Sir")
+                   & dataAll$Sex == "male"] <- "Dr"
+dataAll$titleGroup[dataAll$NameTitle %in% c("Dona", "Dr", "Lady", "Mlle", "Mme", "the Countess")
+                   & as.character(dataAll$Sex) == "female"] <- "Mme"
+dataAll$titleGroup[dataAll$NameTitle %in% c("Ms")
+                   & as.character(dataAll$Sex) == "female"] <- "Mrs"
+dataAll$titleGroup <- myAsFactor(dataAll, "titleGroup")
+table(dataAll$titleGroup)
 
 
-##3. Inferring the customer gender - Baseline model
+barTitleGrpSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                          , aes(x = reorder(titleGroup, -Survived, mean)
+                                , y = Survived))
+barTitleGrpSurv <- barTitleGrpSurv + stat_summary(fun.y="mean", geom="bar")
+barTitleGrpSurv <- barTitleGrpSurv + ylim(0, 1)
+barTitleGrpSurv
+checkDependence("SurvivedF", "titleGroup")
 
-A simple baseline model was created to give a first quick labelling of the customers' gender. This was done to serve as a reference - to make sure that the more complex models to come still produce results in line with intuition.
+```
 
-The Baseline Model chosen is:
+```{r Age, echo=FALSE, cache=TRUE, message = F}
 
-__If more than 50% of a customer's purchased items are male items, than the customer is male__
-
-
-The histogram below shows the distribution of the _percentage male_ metric, i.e. the number of male items purchased as a percentage of the total items purchased by a customer. There are two things to note here:
-
-
-* There is a strong polarity in the data, i.e. the good majority of customers either purchase male items __only__  or purchase female/unisex items __only__.
-* There is an imbalance in the data set - there are more "female only" shoppers than "male only" shoppers. This is important to keep in mind especially when evaluating the Prediction Models later on.
+# 5. is Age related to Survival? ----------------------------------------------
+# first note that there are many NAs for age
+# if age turns out to be significant, we will want to do something about that
+summary(dataAll$Age)
 
 
-```{r baseline_infer_gender, echo=FALSE, cache=TRUE, message = F}
+lineAgeSurv <- ggplot(dataAll[!is.na(dataAll$Age) & !is.na(dataAll$Survived),]
+                      , aes(x = Age
+                            , y = Survived
+                            , colour = Sex))
+lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 50, fun.y="mean", geom="line", size = 0.2)
+lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="line", size = 0.5)
+lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
+lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
+lineAgeSurv
 
-test_data$perc_male <- with(test_data, male_items / (items))
-hist(test_data$perc_male)
-test_data$isMale_baseline <- (test_data$perc_male > 0.5)*1
+# so yes, there is so dependency, especially on younger males
+# but these are probably labelled "Master"
+# so split age-survival relationship per titleGroup
+# then relationship is much less evident
 
-summaryBaseline <- as.data.frame(table(test_data[,c("isMale_baseline")]))
-colnames(summaryBaseline) <- c("isMale_flag_from_Baseline_Model", "Number_of_Customers")
-summaryBaseline$Percentage_of_Customers <- with(summaryBaseline, Number_of_Customers / sum(Number_of_Customers))
+lineAgeTitleSurv <- ggplot(dataAll[!is.na(dataAll$Age)
+                              & !is.na(dataAll$Survived)
+                              & dataAll$titleGroup != "Capt",]
+                      , aes(x = Age
+                            , y = Survived
+                            , colour = Sex))
+lineAgeTitleSurv <- lineAgeTitleSurv + facet_grid(rows = vars(titleGroup))
+lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 50, fun.y="mean", geom="line", size = 0.2)
+lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="line", size = 0.5)
+lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
+lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
+#lineAgeTitleSurv <- lineAgeTitleSurv + geom_smooth(method = "lm")
+lineAgeTitleSurv
 
-kable(summaryBaseline, caption = "Table of results for the Baseline Model to Infer Gender")
+
+dataAll$ageBucket <- NA
+dataAll$ageBucket[dataAll$Age < 3] <- "0-3"
+dataAll$ageBucket[dataAll$Age >= 3 & dataAll$Age < 6] <- "3-6"
+dataAll$ageBucket[dataAll$Age >= 6 & dataAll$Age < 9] <- "6-9"
+dataAll$ageBucket[dataAll$Age >= 9 & dataAll$Age < 12] <- "9-12"
+dataAll$ageBucket[dataAll$Age >= 12 & dataAll$Age < 15] <- "12-15"
+dataAll$ageBucket[dataAll$Age >= 15] <- "15+"
+dataAll$ageBucket <- myAsFactor(dataAll, "ageBucket")
+
+summary(dataAll$ageBucket)
+barAgeSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                     , aes(x = ageBucket
+                           , y = Survived))
+#barEmbSurv <- barEmbSurv + facet_grid(cols = vars(cabinClass))
+barAgeSurv <- barAgeSurv + stat_summary(fun.y="mean", geom="bar")
+barAgeSurv <- barAgeSurv + ylim(0, 1)
+barAgeSurv
+checkDependence("SurvivedF", "ageBucket")
+
+```
+
+```{r Embarking, echo=FALSE, cache=TRUE, message = F}
+
+table(dataAll$Embarked)
+barEmbSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                     , aes(x = Embarked
+                           , y = Survived))
+#barEmbSurv <- barEmbSurv + facet_grid(cols = vars(cabinClass))
+barEmbSurv <- barEmbSurv + stat_summary(fun.y="mean", geom="bar")
+barEmbSurv <- barEmbSurv + ylim(0, 1)
+barEmbSurv
+checkDependence("SurvivedF", "Embarked")
+
+```
+
+```{r Fare, echo=FALSE, cache=TRUE, message = F}
+
+summary(dataAll$Fare)
+hist(dataAll$Fare)
+hist(log(dataAll$Fare+1))
+dataAll$logFare <- log(dataAll$Fare + 1)
+
+
+scatFareSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x = logFare
+                             , y = Survived))
+scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 50, fun.y="mean", geom="line", size = 0.2)
+scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="line", size = 0.5)
+scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
+scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
+scatFareSurv <- scatFareSurv + geom_smooth(method = "lm")
+scatFareSurv
+
+
+medlogFare <- median(dataAll$logFare)
+dataAll$logFareS <- dataAll$logFare / (2*medlogFare)
+summary(dataAll$logFareS)
+
+
+# 8. Parch --------------------------------------------------------------------
+table(dataAll$Parch)
+table(dataAll$Parch[!is.na(dataAll$Survived)])
+barParchSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x = Parch
+                             , y = Survived))
+barParchSurv <- barParchSurv + stat_summary(fun.y="mean", geom="bar")
+barParchSurv <- barParchSurv + ylim(0, 1)
+barParchSurv
+
+dataAll$parchGroup <- dataAll$Parch
+dataAll$parchGroup[dataAll$Parch %in% c(1,2)] <- "1_2"
+dataAll$parchGroup[dataAll$Parch >= 3] <- "3+"
+dataAll$parchGroup <- myAsFactor(dataAll, "parchGroup")
+table(dataAll$parchGroup)
+checkDependence("SurvivedF", "parchGroup")
+
+
+# 9. SibSp --------------------------------------------------------------------
+table(dataAll$SibSp)
+table(dataAll$SibSp[!is.na(dataAll$Survived)])
+barSibSpSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x = SibSp
+                             , y = Survived))
+barSibSpSurv <- barSibSpSurv + stat_summary(fun.y="mean", geom="bar")
+barSibSpSurv <- barSibSpSurv + ylim(0, 1)
+barSibSpSurv
+
+dataAll$sibspGroup <- dataAll$SibSp
+dataAll$sibspGroup[dataAll$SibSp %in% c(1,2)] <- "1_2"
+dataAll$sibspGroup[dataAll$SibSp %in% c(3,4)] <- "3_4"
+dataAll$sibspGroup[dataAll$SibSp >= 5] <- "5+"
+dataAll$sibspGroup <- myAsFactor(dataAll, "sibspGroup")
+table(dataAll$sibspGroup)
+checkDependence("SurvivedF", "sibspGroup")
 
 ```
 
@@ -175,49 +360,7 @@ Quite a few new features were engineered; mostly ratios such as _revenue per ord
 
 ```{r feature_engineering, echo=FALSE, cache=TRUE, message = F}
 
-test_data$perc_unisex <- with(test_data, unisex_items / items)
-test_data$days_between_first_last_order <- with(test_data, days_since_first_order - days_since_last_order)
-test_data$orders_per_day     <- with(test_data,  orders / (days_between_first_last_order+1))
-test_data$items_per_order    <- with(test_data, items / orders)
-test_data$revenue_per_item   <- with(test_data, revenue / items)
-test_data$revenue_per_order  <- with(test_data, revenue / orders)
-test_data$total_item_types   <- pmax(test_data$items,
-                                     with(test_data, wapp_items + wftw_items + mapp_items + wacc_items + macc_items
-                                     + mftw_items + wspt_items + mspt_items + curvy_items + sacc_items))
 
-test_data$perc_app     <- with(test_data, (wapp_items + curvy_items + mapp_items)/total_item_types)
-test_data$perc_ftw     <- with(test_data, (wftw_items + mftw_items)/total_item_types)
-test_data$perc_acc     <- with(test_data, (wacc_items + macc_items + sacc_items)/total_item_types)
-test_data$perc_spt     <- with(test_data, (wspt_items + mspt_items + sacc_items)/total_item_types)
-
-test_data$distinct_item_types <- with(test_data,
-                                      ceiling(perc_app) + ceiling(perc_ftw)
-                                      + ceiling(perc_acc) + ceiling(perc_spt)) / 4
-
-test_data$perc_cancels <- with(test_data, cancels / orders)
-test_data$perc_cancels[test_data$perc_cancels > 1] <- rep(1.0, sum(test_data$perc_cancels > 1))
-test_data$perc_returns <- with(test_data, returns / orders)
-test_data$perc_returns[test_data$perc_returns > 1] <- rep(1.0, sum(test_data$perc_returns > 1))
-test_data$perc_vouchers <- with(test_data, vouchers / items)
-
-test_data$multiple_payments <- with(test_data, cc_payments + paypal_payments
-                                    + afterpay_payments + apple_payments)
-test_data$multiple_payments <- test_data$multiple_payments / 5
-
-test_data$perc_mobile <- with(test_data, (msite_orders + ios_orders + android_orders) / orders)
-test_data$perc_work   <- with(test_data, work_orders / orders)
-test_data$perc_home   <- with(test_data, home_orders / orders)
-test_data$perc_ppt    <- with(test_data, parcelpoint_orders / orders)
-test_data$perc_oColl  <- with(test_data, other_collection_orders / orders)
-
-
-test_data$used_coupons <- (test_data$coupon_discount_applied > 0)*1
-test_data$used_coupons[is.na(test_data$used_coupons)] <- rep(0, sum(is.na(test_data$used_coupons)))
-
-test_data$used_redpen <- (test_data$redpen_discount_used > 0)*1
-
-
-colnames(test_data)
 ```
 
 
@@ -233,26 +376,7 @@ where $p$ is selected such that the median of the particular column is normalise
 
 ```{r feature_scaling_and_initial_selection, echo=FALSE, cache=TRUE, message = F}
 
-select_candidate_features <- c("isMale_baseline", "perc_male", "perc_unisex", "is_newsletter_subscriber"
-                               , "orders", "items", "different_addresses"
-                               , "shipping_addresses", "devices", "cc_payments", "paypal_payments"
-                               , "afterpay_payments", "apple_payments", "average_discount_onoffer"
-                               , "average_discount_used", "revenue", "days_between_first_last_order"
-                               , "orders_per_day", "items_per_order", "revenue_per_item"
-                               , "revenue_per_order", "perc_app", "perc_ftw", "perc_acc", "perc_spt"
-                               , "distinct_item_types", "perc_cancels", "perc_returns", "perc_vouchers"
-                               , "multiple_payments", "perc_mobile", "perc_work", "perc_home"
-                               , "perc_ppt", "perc_oColl", "used_redpen")
 
-data_ <- test_data[,select_candidate_features]
-
-to_normalise <- colnames(data_[,(lapply(data_, max)>1)])
-
-for (i in to_normalise){
-  colMedian  <- median(data_[,i])
-  scalePower <- log(0.5)/log(colMedian/(1+colMedian))
-  data_[,i]  <- (data_[,i]/(1+data_[,i]))^scalePower
-}
 ```
 
 
