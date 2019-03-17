@@ -139,6 +139,9 @@ checkDependence <- function(variable1, variable2){
 
 Here I investigate each variable in more detail, particularly in view of the Target variable. For each variable, I look for any relationship with the Target by using the Chi-Squared Test of Independence if the variable is categorical (e.g. Embarked) or using the Student's t-Test if the variable is numerical (e.g. Fare). When categorical variables have a lot of levels, I consider grouping levels. I also apply scaling of numerical variables as necessary.
 
+
+###Passenger Class
+
 ```{r class, echo=FALSE, cache=TRUE, message = F}
 
 table(dataAll$Pclass)
@@ -151,6 +154,8 @@ barClassSurv
 checkDependence("SurvivedF", "Pclass")
 
 ```
+
+###First Letter of the Cabin Name
 
 ```{r cabinLetter, echo=FALSE, cache=TRUE, message = F}
 
@@ -167,6 +172,8 @@ dataAll$cabinLetter <- myAsFactor(dataAll, "cabinLetter")
 checkDependence("SurvivedF", "cabinLetter")
 
 ```
+
+###Number of Cabins associated with the Ticket
 
 ```{r noCabins, echo=FALSE, cache=TRUE, message = F}
 
@@ -186,6 +193,8 @@ dataAll$noCabinsGroup <- myAsFactor(dataAll, "noCabinsGroup")
 checkDependence("SurvivedF", "noCabinsGroup")
 
 ```
+
+###Title extracted from the Passenger Name
 
 ```{r NameTitles, echo=FALSE, cache=TRUE, message = F}
 
@@ -221,6 +230,8 @@ barTitleGrpSurv
 checkDependence("SurvivedF", "titleGroup")
 
 ```
+
+###Age
 
 ```{r Age, echo=FALSE, cache=TRUE, message = F}
 
@@ -281,6 +292,8 @@ checkDependence("SurvivedF", "ageBucket")
 
 ```
 
+###Embarking
+
 ```{r Embarking, echo=FALSE, cache=TRUE, message = F}
 
 table(dataAll$Embarked)
@@ -294,6 +307,8 @@ barEmbSurv
 checkDependence("SurvivedF", "Embarked")
 
 ```
+
+###Fare
 
 ```{r Fare, echo=FALSE, cache=TRUE, message = F}
 
@@ -320,6 +335,8 @@ summary(dataAll$logFareS)
 
 ```
 
+###Number of Parent or Child Passengers aboard
+
 ```{r Parch, echo=FALSE, cache=TRUE, message = F}
 
 table(dataAll$Parch)
@@ -339,6 +356,8 @@ table(dataAll$parchGroup)
 checkDependence("SurvivedF", "parchGroup")
 
 ```
+
+###Number of Siblings or Spouse aboard
 
 ```{r SibSp, echo=FALSE, cache=TRUE, message = F}
 
@@ -365,7 +384,7 @@ checkDependence("SurvivedF", "sibspGroup")
 
 Quite a few new features were engineered; mostly ratios such as _revenue per order_ or distinct counts such as _distinct count of payment methods used_. Here is a list of all the features including both the provided and the engineered:
 
-```{r feature_engineering, echo=FALSE, cache=TRUE, message = F}
+```{r featureSelect, echo=FALSE, cache=TRUE, message = F}
 
 dataTrain    <- dataAll[!is.na(dataAll$Survived),]
 dataAge      <- dataAll[!is.na(dataAll$Age),]
