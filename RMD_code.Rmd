@@ -320,7 +320,7 @@ summary(dataAll$logFareS)
 
 ```
 
-```{r Fare, echo=FALSE, cache=TRUE, message = F}
+```{r Parch, echo=FALSE, cache=TRUE, message = F}
 
 table(dataAll$Parch)
 table(dataAll$Parch[!is.na(dataAll$Survived)])
@@ -366,8 +366,6 @@ checkDependence("SurvivedF", "sibspGroup")
 Quite a few new features were engineered; mostly ratios such as _revenue per order_ or distinct counts such as _distinct count of payment methods used_. Here is a list of all the features including both the provided and the engineered:
 
 ```{r feature_engineering, echo=FALSE, cache=TRUE, message = F}
-
-# =============================================================================
 
 dataTrain    <- dataAll[!is.na(dataAll$Survived),]
 dataAge      <- dataAll[!is.na(dataAll$Age),]
@@ -535,7 +533,7 @@ where $p$ is selected such that the median of the particular column is normalise
 
 ##5. Inferring the customer gender - Refined model: Defining Criteria
 
-It is important to note that the inferred gender from the Refined Model differs from those of the Baseline Model by only `r round(perc_diff_fromBaseline*100,1)`%. This is good news because the Baseline Model should already have been a good start, so a redical change by the Refined Model would have raised questions. The fact that the male/female split has not changed much either is also a positive sign. These figures could suggest that the Refined Model is indeed a "refinement".
+It is important to note that the inferred gender from the Refined Model differs from those of the Baseline Model by only bla bla. This is good news because the Baseline Model should already have been a good start, so a redical change by the Refined Model would have raised questions. The fact that the male/female split has not changed much either is also a positive sign. These figures could suggest that the Refined Model is indeed a "refinement".
 
 
 
