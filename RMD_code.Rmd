@@ -180,7 +180,7 @@ testSurvPclass <- checkDependence("SurvivedF", "Pclass")
 
 ###First Letter of the Cabin Name
 
-Unfortunately, `r round(sum(dataAll$Cabin == "")/nrow(dataAll),2)`% of the Cabin Names are null in the data set and there is no specified reason why these are missing.
+The Cabin name is a string, generally starting with a letter followed by some digits. Unfortunately, `r round(sum(dataAll$Cabin == "")/nrow(dataAll),2)`% of the Cabin Names are null in the data set and there is no specified reason why these are missing. Also, there seem to be passengers associated with multiple cabins.
 
 ```{r cabinLetter, echo=FALSE, cache=TRUE, message = F}
 
