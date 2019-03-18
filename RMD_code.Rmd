@@ -5,11 +5,13 @@ date:   "31 March 2019"
 output: html_document
 ---
 
-This project is carried out and presented here to display: my statistical knowledge particularly applied to Logistic Regression; my level of programming in R; and ability to explain and document advanced numerical techniques. I would consider this report as moderately technical and it is intended for an audience having a basic understanding of Regression as well as interest in some of the underlying concepts to this algorithm.
+> Estimated Reading Time: 15-30 minutes
 
-The problem tackled here is to predict, as accurately as possible, the fate of a set of passengers on board the Titanic; whether they would survive or not (i.e. a binary classification problem). I obtained labelled data from Kaggle in the challenge "Titanic: Machine Learning from Disaster" (https://www.kaggle.com/c/titanic), and then applied my algorithm to a test set, also provided and evaluated by Kaggle.
+This project is carried out and presented here to display: my statistical knowledge particularly applied to Logistic Regression; my level of programming in R; and ability to explain and document advanced numerical techniques. I would consider this report as moderately technical and it is intended for an audience having a basic understanding of Regression as well as interest in some of the underlying concepts to this algorithm. The reader may skip all the code chunks if the programming aspect is not of interest.
 
-This report explains the approach taken - including feature engineering, catering for multicollinearity, regularisation, etc. - as well as the final model. Kaggle's evaluation determined an accuracy of just over 78% for my final Logistic Regression model. Furthermore, in some areas of the report I took the opportunity to deviate slightly to explore some concepts related to Regression in general. The same exact reasoning discussed for this problem could be applied to a Churn Prediction model, Insurance Pricing model, or any other propensity model valuable for business. 
+The problem tackled here is to predict, as accurately as possible, the fate of a set of passengers on board the Titanic; whether they would survive or not (i.e. a binary classification problem). I obtained labelled data from Kaggle in the challenge "Titanic: Machine Learning from Disaster" (https://www.kaggle.com/c/titanic), and then applied my algorithm to a test set which also provided and evaluated by Kaggle.
+
+This report explains the approach taken - including feature engineering, catering for multicollinearity, regularisation, etc. - as well as the final model. Kaggle's evaluation determined an accuracy of just over 78% for my final Logistic Regression model. Furthermore, in some sections of the report I took the opportunity to deviate slightly to explore some concepts related to Regression in general. Most of the reasoning discussed here could be applied for Churn Prediction, Insurance Pricing, Fraud Detection, Likelihodd of Adoption and most other propensity models valuable for business.
 
 
 ## Contents
@@ -24,14 +26,14 @@ This report explains the approach taken - including feature engineering, caterin
 
 ##1. Initialisation
 
-The first section of the R code includes setting up packages, extracting data and making sure that the report is reproducible by setting a seed. The data is in CSV format and can be extracted drictly from Kaggle, as well as from my GitHub account.
+The first section of the R code includes setting up packages, extracting data and making sure that the report is reproducible by setting a seed. The data is in CSV format and can be extracted directly from Kaggle, as well as from my GitHub account (as is done for this report).
 
-```{r setting_up, echo=FALSE, message = F, chache = TRUE}
+```{r setting_up, echo=T, message = F, chache = TRUE}
 
 set.seed(200591)
 
 packagesNeeded <- c("RCurl", "dplyr", "stringr", "ggplot2", "reshape"
-                    , "glmnet", "caret", "car", "pROC", "knitr")
+                    , "glmnet", "caret", "car", "pROC", "knitr", "kableExtra")
 
 for (i in packagesNeeded){
   if(!(i %in% installed.packages())){
@@ -54,7 +56,7 @@ dataAll <- rbind(trainO, testO)
 
 First, here is the raw data with some information on each variable as described in Kaggle:
 
-```{r view_data, echo=FALSE, cache=TRUE, message = F}
+```{r view_data, echo=F, cache=TRUE, message = F}
 
 dataInfo <- cbind(colnames(dataAll)
                   , c("Passenger Number"
@@ -71,20 +73,32 @@ dataInfo <- cbind(colnames(dataAll)
                       , "The port in which a passenger has embarked. C - Cherbourg, S - Southampton, Q = Queenstown"))
 
 colnames(dataInfo) <- c("Variable", "Description")
-kable(dataInfo, caption = "Data Description")
+kable(dataInfo, format = "html", caption = "Data Description")  %>%
+  kable_styling(full_width = F)
+
+```
+
+
+Below is a summary of the structure of the table and the first few examples for each variable:
+
+```{r str, echo=F, cache=TRUE, message = F}
+
+str(dataAll)
 
 ```
 
 
 A high level data cleaning is carried out. This includes preparing data types and some simple data manipulation as follows:
 
-* Extracted the title of each passenger from the Name variable, and called the new feature `NameTitle`
-* Filled in a few missing values for the Fare and Embarked variables
-* Transformed the variables: `Pclass`, `Sex`, `Embarked` & `NameTitle` into factors. I made sure that for each variable, the most common level is labelled as the primary level. This is important in anticipation of fitting the regression model.
+* Extracted the title of each passenger from the `Name` variable, and called the new feature `NameTitle`
+* Filled in a few missing values for the `Fare` and `Embarked` variables
+* Transformed the variables: `Pclass`, `Sex`, `Embarked` & `NameTitle` into factors. I made sure that for each variable, the most common level is labelled as the primary level. This is important in anticipation of fitting the regression model
+* A quick analysis for any outliers was carried out and nothing noteworthy was detected
 
+```{r clean, echo=T, cache=TRUE, message = F}
 
-```{r clean, echo=FALSE, cache=TRUE, message = F}
-
+# Passenger Names are written as: "Surname, Title. Name"
+# I create a function to extract the Title from between the comma and fullstop
 getTitle <- function(name) {
   firstTitle <- str_sub(name,
                         start = (str_locate(name, ',')[1]+2),
@@ -95,6 +109,7 @@ dataAll$Name      <- as.character(dataAll$Name)
 dataAll$NameTitle <- sapply(dataAll$Name, getTitle)
 
 
+# I replace the missing Fare values by the median Fare for similar passengers
 fareMissing <- dataAll[is.na(dataAll$Fare),]
 fareQuickFill <- median(dataAll[dataAll$NameTitle == "Mr" &
                                   dataAll$Pclass == 3 &
@@ -103,6 +118,7 @@ fareQuickFill <- median(dataAll[dataAll$NameTitle == "Mr" &
 dataAll$Fare[is.na(dataAll$Fare)] <- fareQuickFill
 
 
+# I replace the missing Embarked values by the most common embarkment for similar passengers
 embarkedMissing <- dataAll[dataAll$Embarked == "",]
 tbEmbark <- table(dataAll$Embarked[dataAll$Pclass == 1 &
                                      dataAll$SibSp == 0 &
@@ -111,6 +127,7 @@ modeEmbarked <- names(which.max(tbEmbark))
 dataAll$Embarked[dataAll$Embarked == ""] <- modeEmbarked
 
 
+# I create a function to change a variable type into factor, with the levels assigned in the same order of their frequency
 myAsFactor <- function(tableName, variable){
   if(is.factor(tableName[,c(variable)])){
     tableName[,c(variable)] <- as.character(tableName[,c(variable)])
@@ -120,12 +137,16 @@ myAsFactor <- function(tableName, variable){
          , levels = names(tb[order(tb, decreasing = TRUE)]))
 }
 
+# Variables to be set as Factors
 dataAll$SurvivedF <- myAsFactor(dataAll, "Survived")
 variablesToRefactor <- c("Pclass", "Sex", "Embarked", "NameTitle")
 for (variable in variablesToRefactor){
   dataAll[,c(variable)] <- myAsFactor(dataAll, variable)
 }
 
+
+# I create a function to compute the Chi-Square test of independence
+# Since the data is not always distributed on all the levels evenly (some levels for some factors contain only a few data points), I incorporate a Monte Carlo technique using the simulate.p.value parameter
 checkDependence <- function(variable1, variable2){
   contingency <- table(dataAll[,c(variable1, variable2)])
   chisq <- chisq.test(x = contingency, simulate.p.value = T)
@@ -137,25 +158,29 @@ checkDependence <- function(variable1, variable2){
 
 ##3. Data Exploration
 
-Here I investigate each variable in more detail, particularly in view of the Target variable. For each variable, I look for any relationship with the Target by using the Chi-Squared Test of Independence if the variable is categorical (e.g. Embarked) or using the Student's t-Test if the variable is numerical (e.g. Fare). When categorical variables have a lot of levels, I consider grouping levels. I also apply scaling of numerical variables as necessary.
+In this section I investigate each variable in more detail, particularly in view of the Target variable. For each variable, I look for any relationship with the Target by using the Chi-Squared Test of Independence if the variable is categorical (e.g. Embarked) or using the Student's t-Test if the variable is numerical (e.g. Fare). When categorical variables have a lot of levels, I consider grouping levels. I also apply scaling of numerical variables as necessary.
 
 
 ###Passenger Class
 
-```{r class, echo=FALSE, cache=TRUE, message = F}
+There are three Passenger Classes: 1, 2 and 3. The majority of the passengers are in the 3rd class, as one would expect, however there is also a considerable amount of passengers in the 2nd and 3rd classes. Plotting the Survival Rate of each class shows that there each class is correlated with the passengers' survival. This observation is supported by a p-value of less than 0.05 for the Chi-Squared test for independence.
 
-table(dataAll$Pclass)
+```{r class, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 5, fig.align="center"}
+
 barClassSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
                        , aes(x=Pclass
                              , y=Survived))
 barClassSurv <- barClassSurv + stat_summary(fun.y="mean", geom="bar")
 barClassSurv <- barClassSurv + ylim(0, 1)
+barClassSurv <- barClassSurv + labs(x = "Pclass", y = "Survival Rate", title = "Survival Rate per Passenger Class")
 barClassSurv
-checkDependence("SurvivedF", "Pclass")
+testSurvPclass <- checkDependence("SurvivedF", "Pclass")
 
 ```
 
 ###First Letter of the Cabin Name
+
+Unfortunately, `r round(sum(dataAll$Cabin == "")/nrow(dataAll),2)`% of the Cabin Names are null in the data set and there is no specified reason why these are missing.
 
 ```{r cabinLetter, echo=FALSE, cache=TRUE, message = F}
 
