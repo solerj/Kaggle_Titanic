@@ -174,33 +174,40 @@ barClassSurv <- barClassSurv + stat_summary(fun.y="mean", geom="bar")
 barClassSurv <- barClassSurv + ylim(0, 1)
 barClassSurv <- barClassSurv + labs(x = "Pclass", y = "Survival Rate", title = "Survival Rate per Passenger Class")
 barClassSurv
-testSurvPclass <- checkDependence("SurvivedF", "Pclass")
+#testSurvPclass <- checkDependence("SurvivedF", "Pclass")
 
 ```
 
-###First Letter of the Cabin Name
+###Cabin Name
 
-The Cabin name is a string, generally starting with a letter followed by some digits. Unfortunately, `r round(sum(dataAll$Cabin == "")/nrow(dataAll),2)`% of the Cabin Names are null in the data set and there is no specified reason why these are missing. Also, there seem to be passengers associated with multiple cabins.
+The Cabin name is a string, generally starting with a letter followed by some digits. Unfortunately, `r round(sum(dataAll$Cabin == "")/nrow(dataAll),2)`% of the Cabin Names are null in the data set and there is no specified reason why these are missing. Also, there seem to be passengers associated with multiple cabins. It was decided to extract two pieces of information from this variable: The first letter of the cabin name (replaced with the letter "N" when not available) and the number of cabins associated with the passenger. For example, PassengerId 28 has the following Cabin Name: `r dataAll[dataAll$PassengerId == 28, c("Cabin")]`. For this apssenger, the new variable `cabinLetter` would take the value of "C", and the new variable `noCabins` would take the value of 3.
 
-```{r cabinLetter, echo=FALSE, cache=TRUE, message = F}
+More information could have been extracted from the cabin name such as the cabin number, and time could have been spent on attempting to fill in the missing cabin names using information from other available variables. Such considerations were noted for future iterations of the project.
+
+#####The First Cabin Letter
+
+From the chart below it was immediately clear that there was some level of dependence between the survival of passengers and the first letter of their cabin. The different cabin letters may very well have referred to different locations or different floors on board the Titanic, for example, which could explain the relationship. It is good to note that only the captain was in cabin "T", and he did not survive.
+
+```{r cabinLetter, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 7, fig.align="center"}
 
 dataAll$cabinLetter <- str_sub(dataAll$Cabin, 1, 1)
-table(dataAll$cabinLetter)
 dataAll$cabinLetter[dataAll$cabinLetter == ""] <- "N"
 barCabinSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
                        , aes(x=reorder(cabinLetter,-Survived,mean)
                              , y=Survived))
 barCabinSurv <- barCabinSurv + stat_summary(fun.y="mean", geom="bar")
 barCabinSurv <- barCabinSurv + ylim(0, 1)
+barCabinSurv <- barCabinSurv + labs(x = "First Cabin Letter", y = "Survival Rate", title = "Survival Rate per First Cabin Letter")
 barCabinSurv
 dataAll$cabinLetter <- myAsFactor(dataAll, "cabinLetter")
-checkDependence("SurvivedF", "cabinLetter")
+#testSurvCabinLetter <- checkDependence("SurvivedF", "cabinLetter")
 
 ```
 
-###Number of Cabins associated with the Ticket
 
-```{r noCabins, echo=FALSE, cache=TRUE, message = F}
+#####Number of Cabins
+
+```{r noCabins, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 5, fig.align="center"}
 
 dataAll$noCabins <- str_count(as.character(dataAll$Cabin), " ")
 table(dataAll$noCabins)
@@ -209,13 +216,14 @@ barNoCabinSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
                              , y=Survived))
 barNoCabinSurv <- barNoCabinSurv + stat_summary(fun.y="mean", geom="bar")
 barNoCabinSurv <- barNoCabinSurv + ylim(0, 1)
+barNoCabinSurv <- barNoCabinSurv + labs(x = "Number of Cabins", y = "Survival Rate", title = "Survival Rate per Number of Cabins")
 barNoCabinSurv
-checkDependence("SurvivedF", "noCabins")
+testSurvNoCabins <- checkDependence("SurvivedF", "noCabins")
 
 dataAll$noCabinsGroup <- dataAll$noCabins
 dataAll$noCabinsGroup[dataAll$noCabins != 0] <- "1+"
 dataAll$noCabinsGroup <- myAsFactor(dataAll, "noCabinsGroup")
-checkDependence("SurvivedF", "noCabinsGroup")
+testSurvNoCabinsGrp <- checkDependence("SurvivedF", "noCabinsGroup")
 
 ```
 
