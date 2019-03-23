@@ -207,10 +207,18 @@ dataAll$cabinLetter <- myAsFactor(dataAll, "cabinLetter")
 
 #####Number of Cabins
 
+Most Passengers are associated with only one cabin. This includes all the passengers for whom we do not have the cabin information. 
+
 ```{r noCabins, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 5, fig.align="center"}
 
-dataAll$noCabins <- str_count(as.character(dataAll$Cabin), " ")
-table(dataAll$noCabins)
+dataAll$noCabins <- str_count(as.character(dataAll$Cabin), " ") + 1
+noCabinsDist <- dataAll %>%
+  group_by(noCabins) %>%
+  summarise(SurvivalRate = mean(Survived, na.rm = T)
+            , Frequency = n())
+kable(noCabinsDist, format = "html", caption = "Distribution of Number of Cabins")  %>%
+  kable_styling(full_width = F)
+
 barNoCabinSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
                        , aes(x = noCabins
                              , y=Survived))
@@ -221,7 +229,7 @@ barNoCabinSurv
 testSurvNoCabins <- checkDependence("SurvivedF", "noCabins")
 
 dataAll$noCabinsGroup <- dataAll$noCabins
-dataAll$noCabinsGroup[dataAll$noCabins != 0] <- "1+"
+dataAll$noCabinsGroup[dataAll$noCabins != 1] <- "2+"
 dataAll$noCabinsGroup <- myAsFactor(dataAll, "noCabinsGroup")
 testSurvNoCabinsGrp <- checkDependence("SurvivedF", "noCabinsGroup")
 
