@@ -219,13 +219,6 @@ noCabinsDist <- dataAll %>%
 kable(noCabinsDist, format = "html", caption = "Distribution of Number of Cabins")  %>%
   kable_styling(full_width = F)
 
-barNoCabinSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
-                       , aes(x = noCabins
-                             , y=Survived))
-barNoCabinSurv <- barNoCabinSurv + stat_summary(fun.y="mean", geom="bar")
-barNoCabinSurv <- barNoCabinSurv + ylim(0, 1)
-barNoCabinSurv <- barNoCabinSurv + labs(x = "Number of Cabins", y = "Survival Rate", title = "Survival Rate per Number of Cabins")
-barNoCabinSurv
 testSurvNoCabins <- checkDependence("SurvivedF", "noCabins")
 
 dataAll$noCabinsGroup <- dataAll$noCabins
@@ -235,20 +228,31 @@ testSurvNoCabinsGrp <- checkDependence("SurvivedF", "noCabinsGroup")
 
 ```
 
+The data hints that the higher the Number of Cabins, the higher the probability of survival. However, putting this hypothesis to the test returns a p-value of `r testSurvNoCabins`. The test rejects the hypothesis probably because there is not much data for `noCabins` greater than 1. To mitigate this, the `noCabins` variable is grouped into two levels, 1 and 2+, to form a new variable called `noCabinsGroup`. Applying the Chi-Squared test now returns a p-value of `r testSurvNoCabinsGrp`, which does not quite prove the level of confidence that one would wish for, however it is decided to still include this variable in the model while keeping a close eye on it.
+
+
 ###Title extracted from the Passenger Name
 
-```{r NameTitles, echo=FALSE, cache=TRUE, message = F}
+Certainly some work needs to be done on the `NameTitle` variable because, as shown in the table below, some of the levels appear only a few times or even once in the data. Including this variable as it is in a Regression model could risk overfitting. One easy improvement is to, once again, group some of the Titles. 
 
-table(dataAll$NameTitle)
+```{r NameTitles1, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 10, fig.align="center"}
 
-# clearly some relationship between NameTitle and probab of Survival
-# but there are a bit too many categories and risk of overfitting
-barTitleSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
-                       , aes(x=reorder(NameTitle,-Survived,mean)
-                             , y=Survived))
-barTitleSurv <- barTitleSurv + stat_summary(fun.y="mean", geom="bar")
-barTitleSurv <- barTitleSurv + ylim(0, 1)
-barTitleSurv
+nameTitleDist <- dataAll %>%
+  group_by(NameTitle) %>%
+  summarise(SurvivalRate = mean(Survived, na.rm = T)
+            , Frequency = n())
+kable(nameTitleDist, format = "html", caption = "Distribution of Titles")  %>%
+  kable_styling(full_width = F)
+
+```
+
+Indeed, after a quick search to understand which titles suggest similar signority and gender, and keeping an eye on the Survival Rate of each Title, grouping was done as follows:
+
+* *Col*, *Don*, *Dr*, *Jonkheer*, *Major*, *Rev* and *Sir* were all grouped as *Dr*
+* *Dona*, *Dr (female)*, *Lady*, *Mlle*, *Mme* and *the Coutness* were all grouped as *Mme*
+* *Ms* and *Mrs* were grouped as *Mrs*
+
+```{r NameTitles2, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 6, fig.align="center"}
 
 # created title groups for more important people 
 dataAll$titleGroup <- as.character(dataAll$NameTitle)
@@ -259,7 +263,7 @@ dataAll$titleGroup[dataAll$NameTitle %in% c("Dona", "Dr", "Lady", "Mlle", "Mme",
 dataAll$titleGroup[dataAll$NameTitle %in% c("Ms")
                    & as.character(dataAll$Sex) == "female"] <- "Mrs"
 dataAll$titleGroup <- myAsFactor(dataAll, "titleGroup")
-table(dataAll$titleGroup)
+
 
 
 barTitleGrpSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
@@ -267,6 +271,7 @@ barTitleGrpSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
                                 , y = Survived))
 barTitleGrpSurv <- barTitleGrpSurv + stat_summary(fun.y="mean", geom="bar")
 barTitleGrpSurv <- barTitleGrpSurv + ylim(0, 1)
+barTitleGrpSurv <- barTitleGrpSurv + labs(x = "Passenger Title Group", y = "Survival Rate", title = "Survival Rate per Passenger Title Group")
 barTitleGrpSurv
 checkDependence("SurvivedF", "titleGroup")
 
