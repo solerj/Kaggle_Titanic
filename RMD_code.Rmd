@@ -277,30 +277,23 @@ checkDependence("SurvivedF", "titleGroup")
 
 ```
 
+This results in less groups with more data points for each group. The Chi-Squared test confirms that there is some dependence between the `titleGroup` and Survival, plus with this new variable the risk of overfitting is reduced.
+
+
 ###Age
 
-```{r Age, echo=FALSE, cache=TRUE, message = F}
+Upon investigating the `Age` variable, it is noticable that there is a considerable share of missing values. Before attempting to solve this issue, however, it would be wise to compare the `Age` variable against the newly created `titleGroup` variable because the `titleGroup` of the passenger may very well have a strong link the the `Age`. 
 
-# 5. is Age related to Survival? ----------------------------------------------
-# first note that there are many NAs for age
-# if age turns out to be significant, we will want to do something about that
+```{r Age1, echo=FALSE, cache=TRUE, message = F}
+
 summary(dataAll$Age)
 
+```
 
-lineAgeSurv <- ggplot(dataAll[!is.na(dataAll$Age) & !is.na(dataAll$Survived),]
-                      , aes(x = Age
-                            , y = Survived
-                            , colour = Sex))
-lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 50, fun.y="mean", geom="line", size = 0.2)
-lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="line", size = 0.5)
-lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
-lineAgeSurv <- lineAgeSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
-lineAgeSurv
+Indeed ... 
 
-# so yes, there is so dependency, especially on younger males
-# but these are probably labelled "Master"
-# so split age-survival relationship per titleGroup
-# then relationship is much less evident
+
+```{r Age2, echo=FALSE, cache=TRUE, message = F, fig.height = 6, fig.width = 6, fig.align="center"}
 
 lineAgeTitleSurv <- ggplot(dataAll[!is.na(dataAll$Age)
                               & !is.na(dataAll$Survived)
@@ -316,6 +309,11 @@ lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 10, fun.y="mean",
 #lineAgeTitleSurv <- lineAgeTitleSurv + geom_smooth(method = "lm")
 lineAgeTitleSurv
 
+```
+
+Grouping and here are results
+
+```{r Age3, echo=FALSE, cache=TRUE, message = F, fig.height = 6, fig.width = 6, fig.align="center"}
 
 dataAll$ageBucket <- NA
 dataAll$ageBucket[dataAll$Age < 3] <- "0-3"
@@ -326,15 +324,13 @@ dataAll$ageBucket[dataAll$Age >= 12 & dataAll$Age < 15] <- "12-15"
 dataAll$ageBucket[dataAll$Age >= 15] <- "15+"
 dataAll$ageBucket <- myAsFactor(dataAll, "ageBucket")
 
-summary(dataAll$ageBucket)
-barAgeSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
-                     , aes(x = ageBucket
-                           , y = Survived))
-#barEmbSurv <- barEmbSurv + facet_grid(cols = vars(cabinClass))
-barAgeSurv <- barAgeSurv + stat_summary(fun.y="mean", geom="bar")
-barAgeSurv <- barAgeSurv + ylim(0, 1)
-barAgeSurv
-checkDependence("SurvivedF", "ageBucket")
+ageBucketDist <- dataAll %>%
+  group_by(ageBucket) %>%
+  summarise(SurvivalRate = mean(Survived, na.rm = T)
+            , Frequency = n())
+
+kable(arrange(ageBucketDist, desc(Frequency)), format = "html", caption = "Distribution of Age Group")  %>%
+  kable_styling(full_width = F)
 
 ```
 
