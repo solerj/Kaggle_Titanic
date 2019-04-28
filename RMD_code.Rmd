@@ -70,7 +70,7 @@ dataInfo <- cbind(colnames(dataAll)
                       , "Ticket code"
                       , "Fare"
                       , "Cabin code"
-                      , "The port in which a passenger has embarked. C - Cherbourg, S - Southampton, Q = Queenstown"))
+                      , "The port from which a passenger has embarked. C - Cherbourg, S - Southampton, Q = Queenstown"))
 
 colnames(dataInfo) <- c("Variable", "Description")
 kable(dataInfo, format = "html", caption = "Data Description")  %>%
@@ -273,7 +273,7 @@ barTitleGrpSurv <- barTitleGrpSurv + stat_summary(fun.y="mean", geom="bar")
 barTitleGrpSurv <- barTitleGrpSurv + ylim(0, 1)
 barTitleGrpSurv <- barTitleGrpSurv + labs(x = "Passenger Title Group", y = "Survival Rate", title = "Survival Rate per Passenger Title Group")
 barTitleGrpSurv
-checkDependence("SurvivedF", "titleGroup")
+# checkDependence("SurvivedF", "titleGroup")
 
 ```
 
@@ -282,7 +282,9 @@ This results in less groups with more data points for each group. The Chi-Square
 
 ###Age
 
-Upon investigating the `Age` variable, it is noticable that there is a considerable share of missing values. Before attempting to solve this issue, however, it would be wise to compare the `Age` variable against the newly created `titleGroup` variable because the `titleGroup` of the passenger may very well have a strong link the the `Age`. 
+Upon investigating the `Age` variable, it is noticable that there is a considerable share of missing values. Before attempting to solve the issue of missing data, however, it would be wise to compare the `Age` variable against the newly created `titleGroup` variable because the `titleGroup` of the passenger may very well have a strong link with the `Age`.
+
+Here is the summary for the `Age` variable:
 
 ```{r Age1, echo=FALSE, cache=TRUE, message = F}
 
@@ -290,7 +292,7 @@ summary(dataAll$Age)
 
 ```
 
-Indeed ... 
+It is suspected that `Age` and `titleGroup` are correlated. The chart below shows the Survival of passengers at different ages, split by the `titleGroup`. Except for the `titleGroup` "Master", the `titleGroups` do not segment the passenger ages as much as one might have expected - many of the `titleGroups` have heavily operlapping passenger age brackets (i.e. not very related). Additionally, the line charts show no relationship between the Survival Rate and ages within each `titleGroup`. The line chart is plotted for different bucketing of the ages with the intention of visualising a range of plots from detailed to smoothened. None of these gives any clear indication of an existing relationship.
 
 
 ```{r Age2, echo=FALSE, cache=TRUE, message = F, fig.height = 6, fig.width = 6, fig.align="center"}
@@ -306,12 +308,13 @@ lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 50, fun.y="mean",
 lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="line", size = 0.5)
 lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
 lineAgeTitleSurv <- lineAgeTitleSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
+lineAgeTitleSurv <- lineAgeTitleSurv + labs(x = "Age", y = "Survival Rate", title = "Survival Rate across Age, split by Passenger Title Group")
 #lineAgeTitleSurv <- lineAgeTitleSurv + geom_smooth(method = "lm")
 lineAgeTitleSurv
 
 ```
 
-Grouping and here are results
+Despite the lack of evidence of correlation, the `Age` variable is still bucketed into a new variable called `ageBucket` and prepared so that it could be fit in the model later on. It is expected this variable will not add any significant information to the model, and it will also be used as an example to demonstrate how modelling techniques expose this automatically. Furthermore, the `Age` variable was bucketed into a categorical variable to increase the chances of it being significant; bucketing relaxes the linearity assumption (such as, for example, that propability of survival decreases as the age increases, which there is no evidence of) and avoids having to implement scaling of the variable. The below bucketing was selected after trying a few quick combinations.
 
 ```{r Age3, echo=FALSE, cache=TRUE, message = F, fig.height = 6, fig.width = 6, fig.align="center"}
 
@@ -332,11 +335,15 @@ ageBucketDist <- dataAll %>%
 kable(arrange(ageBucketDist, desc(Frequency)), format = "html", caption = "Distribution of Age Group")  %>%
   kable_styling(full_width = F)
 
+checkDependence("SurvivedF", "ageBucket")
+
 ```
 
 ###Embarking
 
-```{r Embarking, echo=FALSE, cache=TRUE, message = F}
+The majority of embarking was done at Southampton, though Cherbourg and Queenstown were common too. Plotting the Survival Rate of each shows that there could be some correlation with the port of embarkment. In fact, the survival rate for passengers embarking from Southampton is about 35%, compared to about 60% from Cherbourg. One might not find this intuitive but it could be that, for example, passengers embarking from a particular port tend to be assigned cabins on a particular floor. This possibility will be investigated further in the next section.
+
+```{r Embarking, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 4, fig.align="center"}
 
 table(dataAll$Embarked)
 barEmbSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
@@ -345,17 +352,21 @@ barEmbSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
 #barEmbSurv <- barEmbSurv + facet_grid(cols = vars(cabinClass))
 barEmbSurv <- barEmbSurv + stat_summary(fun.y="mean", geom="bar")
 barEmbSurv <- barEmbSurv + ylim(0, 1)
+barEmbSurv <- barEmbSurv + labs(x = "Port Embarked", y = "Survival Rate", title = "Survival Rate per Port Embarked")
 barEmbSurv
-checkDependence("SurvivedF", "Embarked")
+# checkDependence("SurvivedF", "Embarked")
 
 ```
 
 ###Fare
 
-```{r Fare, echo=FALSE, cache=TRUE, message = F}
+The `Fare` variable is the one with the widest range and biggest variance. Plotting its distribution reveals an exponential shape, which comes to no surprise. Applying the natural log to the variable gives a much more normal-like distribution, which is expected to perform better. Note that some passengers have a fare amount of $0, which is catered for by adding 1 before applying the log transformation. This transformed variable is saved as `logFare`.
+
+
+```{r Fare1, echo=FALSE, cache=TRUE, message = F, fig.height = 5, fig.width = 5, fig.align="center"}
 
 summary(dataAll$Fare)
-hist(dataAll$Fare)
+# hist(dataAll$Fare)
 hist(log(dataAll$Fare+1))
 dataAll$logFare <- log(dataAll$Fare + 1)
 
@@ -368,14 +379,23 @@ scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="l
 scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
 scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
 scatFareSurv <- scatFareSurv + geom_smooth(method = "lm")
+scatFareSurv <- scatFareSurv + labs(x = "logFare", y = "Survival Rate", title = "Relationship of Survival Rate with ln(Fare+1)")
 scatFareSurv
 
+```
+
+As a scaling factor, the `logFare` is then is then divided by the median of `logFare`, and saved as `logFareS`. This reduces the range of the variable to be between `r min(dataAll$logFareS)` and `r max(dataAll$logFareS)`.
+
+```{r Fare2, echo=FALSE, cache=TRUE, message = F, fig.height = 5, fig.width = 5, fig.align="center"}
 
 medlogFare <- median(dataAll$logFare)
 dataAll$logFareS <- dataAll$logFare / (2*medlogFare)
 summary(dataAll$logFareS)
 
 ```
+
+
+
 
 ###Number of Parent or Child Passengers aboard
 
