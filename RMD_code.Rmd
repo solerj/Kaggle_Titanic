@@ -292,7 +292,7 @@ summary(dataAll$Age)
 
 ```
 
-It is suspected that `Age` and `titleGroup` are correlated. The chart below shows the Survival of passengers at different ages, split by the `titleGroup`. Except for the `titleGroup` "Master", the `titleGroups` do not segment the passenger ages as much as one might have expected - many of the `titleGroups` have heavily operlapping passenger age brackets (i.e. not very related). Additionally, the line charts show no relationship between the Survival Rate and ages within each `titleGroup`. The line chart is plotted for different bucketing of the ages with the intention of visualising a range of plots from detailed to smoothened. None of these gives any clear indication of an existing relationship.
+It is suspected that `Age` and `titleGroup` are correlated. The chart below shows the Survival of passengers at different ages, split by the `titleGroup` (and `gender`). Except for the `titleGroup` "Master", the `titleGroups` do not segment the passenger ages as much as one might have expected - many of the `titleGroups` have heavily operlapping passenger age brackets (i.e. not very related). Additionally, the line charts show no relationship between the Survival Rate and ages within each `titleGroup`. The line chart is plotted for different bucketing of the ages with the intention of visualising a range of plots from detailed to smoothened. None of these gives any clear indication of an existing relationship.
 
 
 ```{r Age2, echo=FALSE, cache=TRUE, message = F, fig.height = 6, fig.width = 6, fig.align="center"}
@@ -314,7 +314,7 @@ lineAgeTitleSurv
 
 ```
 
-Despite the lack of evidence of correlation, the `Age` variable is still bucketed into a new variable called `ageBucket` and prepared so that it could be fit in the model later on. It is expected this variable will not add any significant information to the model, and it will also be used as an example to demonstrate how modelling techniques expose this automatically. Furthermore, the `Age` variable was bucketed into a categorical variable to increase the chances of it being significant; bucketing relaxes the linearity assumption (such as, for example, that propability of survival decreases as the age increases, which there is no evidence of) and avoids having to implement scaling of the variable. The below bucketing was selected after trying a few quick combinations.
+Despite the lack of evidence of correlation between `Age` and the probability of survival, the `Age` variable is still bucketed into a new variable called `ageBucket` and prepared so that it could be fit in the model later on. It is expected this variable will not add any significant information to the model, and it will also be used as an example to demonstrate how modelling techniques expose this automatically. The `Age` variable was bucketed into a categorical variable to increase the chances of it being significant; bucketing relaxes the linearity assumption (such as, for example, that propability of survival decreases as the age increases, which there is no evidence of) and avoids having to implement scaling of the variable. The below bucketing was selected after trying a few quick combinations.
 
 ```{r Age3, echo=FALSE, cache=TRUE, message = F, fig.height = 6, fig.width = 6, fig.align="center"}
 
@@ -335,7 +335,7 @@ ageBucketDist <- dataAll %>%
 kable(arrange(ageBucketDist, desc(Frequency)), format = "html", caption = "Distribution of Age Group")  %>%
   kable_styling(full_width = F)
 
-checkDependence("SurvivedF", "ageBucket")
+# checkDependence("SurvivedF", "ageBucket")
 
 ```
 
@@ -345,7 +345,7 @@ The majority of embarking was done at Southampton, though Cherbourg and Queensto
 
 ```{r Embarking, echo=FALSE, cache=TRUE, message = F, fig.height = 4, fig.width = 4, fig.align="center"}
 
-table(dataAll$Embarked)
+# table(dataAll$Embarked)
 barEmbSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
                      , aes(x = Embarked
                            , y = Survived))
@@ -360,15 +360,32 @@ barEmbSurv
 
 ###Fare
 
-The `Fare` variable is the one with the widest range and biggest variance. Plotting its distribution reveals an exponential shape, which comes to no surprise. Applying the natural log to the variable gives a much more normal-like distribution, which is expected to perform better. Note that some passengers have a fare amount of $0, which is catered for by adding 1 before applying the log transformation. This transformed variable is saved as `logFare`.
+The `Fare` variable is the one with the widest range and biggest variance (note how the 3rd quartile is much smaller than the maximum), plus it is also heavily skewed (note the difference between the median and the mean). Plotting its distribution reveals an exponential shape, which comes to no surprise.
+
+```{r Fare3, echo=FALSE, cache=TRUE, message = F, fig.height = 5, fig.width = 5, fig.align="center"}
+
+summary(dataAll$Fare)
+
+```
+
+It is important that the variable is transformed to be more symmetric, with moderate variance and with a range between 0 and 1.
+
+Applying the natural log to the variable gives a much more normal-like distribution, which is expected to perform better with logistic regression. This also gives us the symmetry that we are looking for. Note that some passengers have a fare amount of $0, which is catered for by adding 1 before applying the log transformation. This transformed variable is saved as `logFare`.
+
+The line chart of Survival Rate versus (binned) logFare gives strong evidence for a linear relationship between the two variables, which means that `logFare` is a promising variable for the logistic regression model. Next, `logFare` needs to be scaled ideally between 0 and 1.
 
 
 ```{r Fare1, echo=FALSE, cache=TRUE, message = F, fig.height = 5, fig.width = 5, fig.align="center"}
 
-summary(dataAll$Fare)
-# hist(dataAll$Fare)
-hist(log(dataAll$Fare+1))
 dataAll$logFare <- log(dataAll$Fare + 1)
+
+histFare <- ggplot(dataAll[!is.na(dataAll$Survived),]
+                       , aes(x = logFare))
+histFare <- histFare + geom_histogram(binwidth = 0.5)
+histFare <- histFare + labs(x = "logFare", y = "Survival Rate", title = "Relationship of Survival Rate with logFare")
+histFare
+
+
 
 
 scatFareSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
@@ -379,43 +396,52 @@ scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 30, fun.y="mean", geom="l
 scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 20, fun.y="mean", geom="line", size = 0.75)
 scatFareSurv <- scatFareSurv + stat_summary_bin(bins = 10, fun.y="mean", geom="line", size = 1)
 scatFareSurv <- scatFareSurv + geom_smooth(method = "lm")
-scatFareSurv <- scatFareSurv + labs(x = "logFare", y = "Survival Rate", title = "Relationship of Survival Rate with ln(Fare+1)")
+scatFareSurv <- scatFareSurv + labs(x = "logFare", y = "Survival Rate", title = "Relationship of Survival Rate with logFare")
 scatFareSurv
 
-```
-
-As a scaling factor, the `logFare` is then is then divided by the median of `logFare`, and saved as `logFareS`. This reduces the range of the variable to be between `r min(dataAll$logFareS)` and `r max(dataAll$logFareS)`.
-
-```{r Fare2, echo=FALSE, cache=TRUE, message = F, fig.height = 5, fig.width = 5, fig.align="center"}
 
 medlogFare <- median(dataAll$logFare)
 dataAll$logFareS <- dataAll$logFare / (2*medlogFare)
-summary(dataAll$logFareS)
 
 ```
 
+As a scaling factor, the `logFare` is then is then divided by the median of `logFare`, and saved as `logFareS`. This reduces the range of the variable to be between `r min(dataAll$logFareS)` and `r max(dataAll$logFareS)`, which is good enough. From the variable summary below it is also good to confirm that the distribution of the transformed variable is symmetric and with moderate variance.
 
+```{r Fare2, echo=FALSE, cache=TRUE, message = F, fig.height = 5, fig.width = 5, fig.align="center"}
+
+summary(dataAll$logFareS)
+
+```
 
 
 ###Number of Parent or Child Passengers aboard
 
 ```{r Parch, echo=FALSE, cache=TRUE, message = F}
 
-table(dataAll$Parch)
-table(dataAll$Parch[!is.na(dataAll$Survived)])
-barParchSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
-                       , aes(x = Parch
-                             , y = Survived))
-barParchSurv <- barParchSurv + stat_summary(fun.y="mean", geom="bar")
-barParchSurv <- barParchSurv + ylim(0, 1)
-barParchSurv
+parchDist <- dataAll %>%
+  group_by(Parch) %>%
+  summarise(SurvivalRate = mean(Survived, na.rm = T)
+            , Frequency = n())
 
-dataAll$parchGroup <- dataAll$Parch
-dataAll$parchGroup[dataAll$Parch %in% c(1,2)] <- "1_2"
-dataAll$parchGroup[dataAll$Parch >= 3] <- "3+"
-dataAll$parchGroup <- myAsFactor(dataAll, "parchGroup")
-table(dataAll$parchGroup)
-checkDependence("SurvivedF", "parchGroup")
+kable(arrange(parchDist, desc(Frequency)), format = "html", caption = "Distribution of Number of Parents/Children")  %>%
+  kable_styling(full_width = F)
+
+
+# table(dataAll$Parch)
+# table(dataAll$Parch[!is.na(dataAll$Survived)])
+# barParchSurv <- ggplot(dataAll[!is.na(dataAll$Survived),]
+#                        , aes(x = Parch
+#                              , y = Survived))
+# barParchSurv <- barParchSurv + stat_summary(fun.y="mean", geom="bar")
+# barParchSurv <- barParchSurv + ylim(0, 1)
+# barParchSurv
+# 
+# dataAll$parchGroup <- dataAll$Parch
+# dataAll$parchGroup[dataAll$Parch %in% c(1,2)] <- "1_2"
+# dataAll$parchGroup[dataAll$Parch >= 3] <- "3+"
+# dataAll$parchGroup <- myAsFactor(dataAll, "parchGroup")
+# table(dataAll$parchGroup)
+# checkDependence("SurvivedF", "parchGroup")
 
 ```
 
